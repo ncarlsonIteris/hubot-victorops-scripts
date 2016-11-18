@@ -25,8 +25,8 @@ userFilter = [
 ]
 
 module.exports = (robot) ->
-  robot.respond /current +(.*)$/i, (msg) ->
-    team = msg.match[1]
+  robot.hear /on ?call( for)? +(.*)$/i, (msg) ->
+    team = msg.match[2]
 
     robot
       .http("https://api.victorops.com/api-public/v1/team/#{team}/oncall/schedule")
@@ -41,27 +41,8 @@ module.exports = (robot) ->
           msg.reply "Users on-call for #{team}: #{users.join(', ')}"
         else
           msg.reply "No team '#{team}' found."
-
-
-  robot.hear /^@! ?(.*) (.*)/, (msg) ->
-    team = msg.match[1]
-    message = msg.match[2]
-
-    robot
-      .http("https://api.victorops.com/api-public/v1/team/#{team}/oncall/schedule")
-      .headers(apiauth)
-      .get() (err, res, body) ->
-        res = JSON.parse "#{body}"
-        if res["schedule"]?
-          users = []
-          for sched in res["schedule"]
-            users.push sched["onCall"] unless sched["overrideOnCall"]? or sched["onCall"] in userFilter
-            users.push sched["overrideOnCall"] if sched["overrideOnCall"]? and sched["overrideOnCall"]? not in userFilter
-          mention = ("@#{user}" for user in users).join(' ')
-          msg.send "#{mention} #{message}"
-        else
-          msg.reply "No team '#{team}' found."
-  robot.hear /^vopage ?(\S*) (.*)/, (msg) ->
+    
+  robot.respond /q?page ?(\S*) (.*)/, (msg) ->
     team = msg.match[1]
     message = msg.match[2]
 

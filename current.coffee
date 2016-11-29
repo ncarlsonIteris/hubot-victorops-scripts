@@ -7,15 +7,18 @@
 # Configuration:
 #   HUBOT_VICTOROPS_API_ID = API ID
 #   HUBOT_VICTOROPS_API_KEY = API Key
-#
+#   HUBOT_VICTOROPS_REST_API_KEY = REST API Key
 # Commands:
-#   hubot current <team> - List users currently on-call for <team>
-#   @!<team> <message> - @-mention <message> to all users currently on-call for <team>
+#   on call <team> - List users currently on-call for <team>
+#   page <team> <message> - CRITICAL alert and <message> to user currently on-call for <team>
 
 apiauth =
   'X-VO-Api-Id': process.env.HUBOT_VICTOROPS_API_ID
   'X-VO-Api-Key': process.env.HUBOT_VICTOROPS_API_KEY
+
 restapikey = process.env.HUBOT_VICTOROPS_REST_API_KEY
+usersInfoFile = 'path/to/info/file'
+
 # List users here who should be excluded from all user lists
 userFilter = [
   ''
@@ -24,8 +27,10 @@ userFilter = [
   'ghost3'
 ]
 
+fs = require 'fs'
+
 module.exports = (robot) ->
-  robot.hear /on ?call( for)? +(.*)$/i, (msg) ->
+  robot.hear /on.?call( *for)? +([a-zA-Z0-9_\-]+)/i, (msg) -> 
     team = msg.match[2]
 
     robot
@@ -38,10 +43,16 @@ module.exports = (robot) ->
           for sched in res["schedule"]
             users.push sched["onCall"] unless sched["overrideOnCall"]? or sched["onCall"] in userFilter
             users.push sched["overrideOnCall"] if sched["overrideOnCall"]? and sched["overrideOnCall"]? not in userFilter
-          msg.reply "Users on-call for #{team}: #{users.join(', ')}"
+          msg.send "Users on-call for #{team}: #{users.join(', ')}"
         else
-          msg.reply "No team '#{team}' found."
-    
+          msg.send "No team '#{team}' found."  
+        fs.readFile usersInfoFile, (err, data) -> 
+          obj=JSON.parse(data)
+          for user in Object.keys(obj["users"])
+            if user in users 
+              for field in Object.keys(obj["users"]["#{user}"])
+                msg.send("#{field}: #{obj["users"]["#{user}"]["#{field}"]}")
+
   robot.respond /q?page ?(\S*) (.*)/, (msg) ->
     team = msg.match[1]
     message = msg.match[2]
